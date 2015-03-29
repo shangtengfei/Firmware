@@ -49,7 +49,6 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <float.h>
-#include <nuttx/sched.h>
 #include <sys/prctl.h>
 #include <termios.h>
 #include <errno.h>
@@ -101,11 +100,11 @@ static void usage(const char *reason);
 static void
 usage(const char *reason)
 {
-	if (reason)
+	if (reason) {
 		fprintf(stderr, "%s\n", reason);
+	}
 
 	fprintf(stderr, "usage: attitude_estimator_ekf {start|stop|status} [-p <additional params>]\n\n");
-	exit(1);
 }
 
 /**
@@ -118,8 +117,10 @@ usage(const char *reason)
  */
 int attitude_estimator_ekf_main(int argc, char *argv[])
 {
-	if (argc < 1)
+	if (argc < 1) {
 		usage("missing command");
+		return 1;
+	}
 
 	if (!strcmp(argv[1], "start")) {
 
@@ -136,29 +137,29 @@ int attitude_estimator_ekf_main(int argc, char *argv[])
 					      7700,
 					      attitude_estimator_ekf_thread_main,
 					      (argv) ? (char * const *)&argv[2] : (char * const *)NULL);
-		exit(0);
+		return 0;
 	}
 
 	if (!strcmp(argv[1], "stop")) {
 		thread_should_exit = true;
-		exit(0);
+		return 0;
 	}
 
 	if (!strcmp(argv[1], "status")) {
 		if (thread_running) {
 			warnx("running");
-			exit(0);
+			return 0;
 
 		} else {
 			warnx("not started");
-			exit(1);
+			return 1;
 		}
 
-		exit(0);
+		return 0;
 	}
 
 	usage("unrecognized command");
-	exit(1);
+	return 1;
 }
 
 /*
@@ -551,7 +552,7 @@ const unsigned int loop_interval_alarm = 6500;	// loop interval in microseconds
 							debugOutput);
 
 					/* swap values for next iteration, check for fatal inputs */
-					if (isfinite(euler[0]) && isfinite(euler[1]) && isfinite(euler[2])) {
+					if (std::isfinite(euler[0]) && std::isfinite(euler[1]) && std::isfinite(euler[2])) {
 						memcpy(P_aposteriori_k, P_aposteriori, sizeof(P_aposteriori_k));
 						memcpy(x_aposteriori_k, x_aposteriori, sizeof(x_aposteriori_k));
 
@@ -560,8 +561,9 @@ const unsigned int loop_interval_alarm = 6500;	// loop interval in microseconds
 						continue;
 					}
 
-					if (last_data > 0 && raw.timestamp - last_data > 30000)
-						printf("[attitude estimator ekf] sensor data missed! (%llu)\n", raw.timestamp - last_data);
+					if (last_data > 0 && raw.timestamp - last_data > 30000) {
+						warnx("data missed! (%llu)\n", static_cast<unsigned long long>(raw.timestamp - last_data));
+					}
 
 					last_data = raw.timestamp;
 
@@ -597,7 +599,7 @@ const unsigned int loop_interval_alarm = 6500;	// loop interval in microseconds
 					memcpy(&att.q[0],&q.data[0],sizeof(att.q));
 					att.R_valid = true;
 
-					if (isfinite(att.roll) && isfinite(att.pitch) && isfinite(att.yaw)) {
+					if (std::isfinite(att.roll) && std::isfinite(att.pitch) && std::isfinite(att.yaw)) {
 						// Broadcast
 						orb_publish(ORB_ID(vehicle_attitude), pub_att, &att);
 
